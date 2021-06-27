@@ -1,0 +1,7 @@
+fastapi==0.59.0
+xmltodict==0.12.0
+pydantic==1.6.1
+uvicorn==0.13.4
+uvloop==0.15.2
+gunicorn==20.0.4
+httptools==0.1.1
