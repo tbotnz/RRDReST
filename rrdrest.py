@@ -12,7 +12,10 @@ rrd_rest = FastAPI()
 async def get_rrd(rrd_path: str):
     is_file = os.path.isfile(rrd_path)
     if is_file:
-        rr = RRD_parser(rrd_file=rrd_path)
-        r = rr.compile_result()
-        return r
+        try:
+            rr = RRD_parser(rrd_file=rrd_path)
+            r = rr.compile_result()
+            return r
+        except Exception as e:
+            HTTPException(status_code=500, detail=f"{e}")
     raise HTTPException(status_code=404, detail="RRD not found")

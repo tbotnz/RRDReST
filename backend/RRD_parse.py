@@ -21,7 +21,7 @@ class RRD_parser:
                                         "rrdtool --version",
                                         shell=True
                                         ).decode('utf-8')
-        if "RRDtool 1.7" not in result:
+        if "RRDtool 1." not in result:
             raise Exception("RRDtool version not found, check rrdtool installed")
 
     def get_data_source(self):
@@ -72,13 +72,18 @@ class RRD_parser:
     def cleanup_payload(self, payload):
         """ cleans up / transforms response payload """
 
-        # convert timezones
+        # convert timezones and floats
         for count, temp_obj in enumerate(payload["data"]):
             epoch_time = temp_obj["t"]
             utc_time = datetime.datetime.fromtimestamp(
                 int(epoch_time)
                 ).strftime(self.time_format)
             payload["data"][count]["t"] = utc_time
+            for key in payload["data"][count]:
+                temp_val = ""
+                if "e+" in payload["data"][count][key] or "e-" in payload["data"][count][key]:
+                    temp_val = payload["data"][count][key]
+                    payload["data"][count][key] = float(temp_val)
         pl = json.dumps(payload)
 
         # remove e+00, e-00
