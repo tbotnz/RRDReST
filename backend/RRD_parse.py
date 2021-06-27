@@ -9,12 +9,14 @@ import datetime
 
 class RRD_parser:
 
-    def __init__(self, rrd_file):
+    def __init__(self, rrd_file=None, start_time=None, end_time=None):
         self.rrd_file = rrd_file
         self.ds = None
         self.step = None
         self.time_format = "%Y-%m-%d %H:%M:%S"
         self.check_dependc()
+        self.start_time = start_time
+        self.end_time = end_time
 
     def check_dependc(self):
         result = subprocess.check_output(
@@ -56,9 +58,10 @@ class RRD_parser:
 
     def get_rrd_json(self, ds):
         """ gets RRD json from rrd tool """
-
+        
         rrd_xport_command = f"rrdtool xport --step {self.step} DEF:data={self.rrd_file}:{ds}:AVERAGE XPORT:data:{ds} --showtime"
-
+        if self.start_time:
+            rrd_xport_command = f"rrdtool xport DEF:data={self.rrd_file}:{ds}:AVERAGE XPORT:data:{ds} --showtime --start {self.start_time} --end {self.end_time}"
         result = subprocess.check_output(
                                         rrd_xport_command,
                                         shell=True
@@ -85,10 +88,6 @@ class RRD_parser:
                     temp_val = payload["data"][count][key]
                     payload["data"][count][key] = float(temp_val)
         pl = json.dumps(payload)
-
-        # remove e+00, e-00
-        pl = re.sub(r'e\+\d\d', "", f"{pl}")
-        pl = re.sub(r'e\-\d\d', "", f"{pl}")
 
         # convert ints, floats
         pl = re.sub(r'\"(\d+)\"', r'\1', f"{pl}")
