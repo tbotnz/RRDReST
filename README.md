@@ -8,5 +8,3 @@ simple micro service for converting your RRD's to web services
 - install the requirements ```pip3 install -r requirements.txt```
 - run the app with uvicorn ```uvicorn rrdrest:rrd_rest --host "0.0.0.0" --port 9000```
 
-### notice
-- project currently just a poc in progress, use at your own leisure
