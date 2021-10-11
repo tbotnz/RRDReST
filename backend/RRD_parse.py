@@ -9,10 +9,10 @@ import datetime
 
 class RRD_parser:
 
-    def __init__(self, rrd_file=None, start_time=None, end_time=None):
+    def __init__(self, rrd_file=None, start_time=None, end_time=None, step=None):
         self.rrd_file = rrd_file
         self.ds = None
-        self.step = None
+        self.step = step
         self.time_format = "%Y-%m-%d %H:%M:%S"
         self.check_dependc()
         self.start_time = start_time
@@ -53,7 +53,8 @@ class RRD_parser:
                     ds_val = match_obj.group(1)
                     if ds_val not in DS_VALS:
                         DS_VALS.append(ds_val)
-        self.step = STEP_VAL
+
+        self.step = STEP_VAL if self.step is None else self.step
         self.ds = DS_VALS
 
     def get_rrd_json(self, ds):
@@ -61,7 +62,7 @@ class RRD_parser:
         
         rrd_xport_command = f"rrdtool xport --step {self.step} DEF:data={self.rrd_file}:{ds}:AVERAGE XPORT:data:{ds} --showtime"
         if self.start_time:
-            rrd_xport_command = f"rrdtool xport DEF:data={self.rrd_file}:{ds}:AVERAGE XPORT:data:{ds} --showtime --start {self.start_time} --end {self.end_time}"
+            rrd_xport_command = f"rrdtool xport DEF:data={self.rrd_file}:{ds}:AVERAGE XPORT:data:{ds} --showtime --start {self.start_time} --end {self.end_time} --step {self.step}"
         result = subprocess.check_output(
                                         rrd_xport_command,
                                         shell=True
