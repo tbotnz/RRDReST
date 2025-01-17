@@ -1,28 +1,33 @@
+import datetime
+import json
+import pytz
+import re
 import subprocess
 import xmltodict
-import json
-import re
+
 from collections import defaultdict
 from itertools import chain
-import datetime
 
 
 class RRD_parser:
 
-    def __init__(self, rrd_file=None, start_time=None, end_time=None):
+    def __init__(self, rrd_file=None, start_time=None, end_time=None, epoch_output=False):
         self.rrd_file = rrd_file
         self.ds = None
         self.step = None
-        self.time_format = "%Y-%m-%d %H:%M:%S"
+        if epoch_output:
+            self.time_format = "%s"
+        else:
+            self.time_format = "%Y-%m-%d %H:%M:%S"
         self.check_dependc()
         self.start_time = start_time
         self.end_time = end_time
 
     def check_dependc(self):
         result = subprocess.check_output(
-                                        "rrdtool --version",
-                                        shell=True
-                                        ).decode('utf-8')
+            "rrdtool --version",
+            shell=True
+        ).decode('utf-8')
         if "RRDtool 1." not in result:
             raise Exception("RRDtool version not found, check rrdtool installed")
 
@@ -63,9 +68,9 @@ class RRD_parser:
         if self.start_time:
             rrd_xport_command = f"rrdtool xport DEF:data={self.rrd_file}:{ds}:AVERAGE XPORT:data:{ds} --showtime --start {self.start_time} --end {self.end_time}"
         result = subprocess.check_output(
-                                        rrd_xport_command,
-                                        shell=True
-                                        ).decode('utf-8')
+            rrd_xport_command,
+            shell=True
+        ).decode('utf-8')
         json_result = json.dumps(xmltodict.parse(result), indent=4)
         # replace rrdtool v key with the ds
         replace_val = "\""+ds.lower()+"\": "
@@ -78,9 +83,10 @@ class RRD_parser:
         # convert timezones and floats
         for count, temp_obj in enumerate(payload["data"]):
             epoch_time = temp_obj["t"]
+            # Convert the epoch time to UTC
             utc_time = datetime.datetime.fromtimestamp(
-                int(epoch_time)
-                ).strftime(self.time_format)
+                int(epoch_time), tz=pytz.utc
+            ).strftime(self.time_format)
             payload["data"][count]["t"] = utc_time
             for key in payload["data"][count]:
                 temp_val = ""
