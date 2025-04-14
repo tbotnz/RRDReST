@@ -1,7 +1,8 @@
-fastapi==0.59.0
-xmltodict==0.12.0
-pydantic==1.6.1
-uvicorn==0.13.4
-uvloop==0.15.2
-gunicorn==20.0.4
-httptools==0.1.1
+fastapi==0.115.6
+gunicorn==23.0.0
+httptools==0.6.4
+pydantic==2.10.4
+pytz==2024.2
+uvicorn==0.34.0
+uvloop==0.21.0
+xmltodict==0.14.2

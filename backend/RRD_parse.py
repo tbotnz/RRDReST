@@ -1,28 +1,34 @@
+import datetime
+import json
+import pytz
+import re
 import subprocess
 import xmltodict
-import json
-import re
+
 from collections import defaultdict
 from itertools import chain
-import datetime
 
 
 class RRD_parser:
 
-    def __init__(self, rrd_file=None, start_time=None, end_time=None):
+    def __init__(self, rrd_file=None, start_time=None, end_time=None, epoch_output=False, timeshift=None):
         self.rrd_file = rrd_file
         self.ds = None
         self.step = None
-        self.time_format = "%Y-%m-%d %H:%M:%S"
+        if epoch_output:
+            self.time_format = "%s"
+        else:
+            self.time_format = "%Y-%m-%d %H:%M:%S"
         self.check_dependc()
         self.start_time = start_time
         self.end_time = end_time
+        self.timeshift=timeshift
 
     def check_dependc(self):
         result = subprocess.check_output(
-                                        "rrdtool --version",
-                                        shell=True
-                                        ).decode('utf-8')
+            "rrdtool --version",
+            shell=True
+        ).decode('utf-8')
         if "RRDtool 1." not in result:
             raise Exception("RRDtool version not found, check rrdtool installed")
 
@@ -56,16 +62,43 @@ class RRD_parser:
         self.step = STEP_VAL
         self.ds = DS_VALS
 
+    def get_timeshift(self):
+        """ gets timeshift from d/w/m/y format """
+        units = {
+            "s":1,
+            "m":60,
+            "h":3600,
+            "d":86400,
+            "w":604800,
+            "M":2628000,
+            "y":31536000,
+            "Y":31536000
+        }
+
+        ts_pieces = re.findall(r"(\d+)({0})".format("|".join(units.keys())), self.timeshift)
+
+        ts_secs = 0
+        for n, u in ts_pieces:
+            print(n, u)
+            ts_secs += int(n) * units[u]
+
+        return ts_secs
+    
     def get_rrd_json(self, ds):
         """ gets RRD json from rrd tool """
         
         rrd_xport_command = f"rrdtool xport --step {self.step} DEF:data={self.rrd_file}:{ds}:AVERAGE XPORT:data:{ds} --showtime"
         if self.start_time:
-            rrd_xport_command = f"rrdtool xport DEF:data={self.rrd_file}:{ds}:AVERAGE XPORT:data:{ds} --showtime --start {self.start_time} --end {self.end_time}"
+            ts = 0
+            if self.timeshift:
+                ts = self.get_timeshift()
+            start_time = self.start_time - ts
+            end_time = self.end_time - ts
+            rrd_xport_command = f"rrdtool xport DEF:data={self.rrd_file}:{ds}:AVERAGE XPORT:data:{ds} --showtime --start {start_time} --end {end_time}"
         result = subprocess.check_output(
-                                        rrd_xport_command,
-                                        shell=True
-                                        ).decode('utf-8')
+            rrd_xport_command,
+            shell=True
+        ).decode('utf-8')
         json_result = json.dumps(xmltodict.parse(result), indent=4)
         # replace rrdtool v key with the ds
         replace_val = "\""+ds.lower()+"\": "
@@ -78,9 +111,13 @@ class RRD_parser:
         # convert timezones and floats
         for count, temp_obj in enumerate(payload["data"]):
             epoch_time = temp_obj["t"]
+            # Convert the epoch time to UTC
+            ts = 0
+            if self.timeshift:
+                ts = self.get_timeshift()
             utc_time = datetime.datetime.fromtimestamp(
-                int(epoch_time)
-                ).strftime(self.time_format)
+                int(epoch_time)+ts, tz=pytz.utc
+            ).strftime(self.time_format)
             payload["data"][count]["t"] = utc_time
             for key in payload["data"][count]:
                 temp_val = ""
