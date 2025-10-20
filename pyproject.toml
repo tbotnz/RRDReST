@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "rrdrest"
+version = "0.0.0"  # Will be replaced by dynamic versioning
+description = "Makes RRD files API-able"
+authors = ["tbotnz <tonynealon1989@gmail.com>"]
+readme = "README.md"
+packages = [{include = "rrdrest.py"}, {include = "backend"}, {include = "__version__.py"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.119.1"
+xmltodict = "^1.0.2"
+pydantic = "^2.12.3"
+uvicorn = "^0.38.0"
+uvloop = "^0.22.1"
+gunicorn = "^23.0.0"
+httptools = "^0.7.1"
+ruff = "^0.14.1"
+
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "any"
+style = "pep440"
+metadata = false
+format-jinja = "{{serialize_pep440(bump_version(base))}}"
+# Read version from __version__.py
+format = "{base}"
+pattern = "default-unprefixed"
+
+[tool.poetry-dynamic-versioning.substitution]
+files = ["__version__.py"]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0", "poetry-dynamic-versioning"]
+build-backend = "poetry_dynamic_versioning.backend"
