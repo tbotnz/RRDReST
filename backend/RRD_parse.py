@@ -8,7 +8,6 @@ import datetime
 
 
 class RRD_parser:
-
     def __init__(self, rrd_file=None, start_time=None, end_time=None):
         self.rrd_file = rrd_file
         self.ds = None
@@ -19,23 +18,21 @@ class RRD_parser:
         self.end_time = end_time
 
     def check_dependc(self):
-        result = subprocess.check_output(
-                                        "rrdtool --version",
-                                        shell=True
-                                        ).decode('utf-8')
+        result = subprocess.check_output("rrdtool --version", shell=True).decode(
+            "utf-8"
+        )
         if "RRDtool 1." not in result:
             raise Exception("RRDtool version not found, check rrdtool installed")
 
     def get_data_source(self):
-        """ gets datasources from rrd tool """
+        """gets datasources from rrd tool"""
 
         STEP_VAL = None
         DS_VALS = []
 
         result = subprocess.check_output(
-            f"rrdtool info {self.rrd_file}",
-            shell=True
-            ).decode('utf-8')
+            f"rrdtool info {self.rrd_file}", shell=True
+        ).decode("utf-8")
 
         temp_arr = result.split("\n")
 
@@ -48,7 +45,7 @@ class RRD_parser:
                 STEP_VAL = raw_val
 
             if ("ds[" in raw_key) and ("]." in raw_key):
-                match_obj = re.match(r'^ds\[(.*)\]', raw_key)
+                match_obj = re.match(r"^ds\[(.*)\]", raw_key)
                 if match_obj:
                     ds_val = match_obj.group(1)
                     if ds_val not in DS_VALS:
@@ -57,47 +54,47 @@ class RRD_parser:
         self.ds = DS_VALS
 
     def get_rrd_json(self, ds):
-        """ gets RRD json from rrd tool """
-        
+        """gets RRD json from rrd tool"""
+
         rrd_xport_command = f"rrdtool xport --step {self.step} DEF:data={self.rrd_file}:{ds}:AVERAGE XPORT:data:{ds} --showtime"
         if self.start_time:
             rrd_xport_command = f"rrdtool xport DEF:data={self.rrd_file}:{ds}:AVERAGE XPORT:data:{ds} --showtime --start {self.start_time} --end {self.end_time}"
-        result = subprocess.check_output(
-                                        rrd_xport_command,
-                                        shell=True
-                                        ).decode('utf-8')
+        result = subprocess.check_output(rrd_xport_command, shell=True).decode("utf-8")
         json_result = json.dumps(xmltodict.parse(result), indent=4)
         # replace rrdtool v key with the ds
-        replace_val = "\""+ds.lower()+"\": "
-        temp_result_one = re.sub("\"v\": ",  replace_val, json_result)
+        replace_val = '"' + ds.lower() + '": '
+        temp_result_one = re.sub('"v": ', replace_val, json_result)
         return json.loads(temp_result_one)
 
     def cleanup_payload(self, payload):
-        """ cleans up / transforms response payload """
+        """cleans up / transforms response payload"""
 
         # convert timezones and floats
         for count, temp_obj in enumerate(payload["data"]):
             epoch_time = temp_obj["t"]
-            utc_time = datetime.datetime.fromtimestamp(
-                int(epoch_time)
-                ).strftime(self.time_format)
+            utc_time = datetime.datetime.fromtimestamp(int(epoch_time)).strftime(
+                self.time_format
+            )
             payload["data"][count]["t"] = utc_time
             for key in payload["data"][count]:
                 temp_val = ""
-                if "e+" in payload["data"][count][key] or "e-" in payload["data"][count][key]:
+                if (
+                    "e+" in payload["data"][count][key]
+                    or "e-" in payload["data"][count][key]
+                ):
                     temp_val = payload["data"][count][key]
                     payload["data"][count][key] = float(temp_val)
         pl = json.dumps(payload)
 
         # convert ints, floats
-        pl = re.sub(r'\"(\d+)\"', r'\1', f"{pl}")
-        pl = re.sub(r'\"(\d+\.\d+)\"', r'\1', f"{pl}")
+        pl = re.sub(r"\"(\d+)\"", r"\1", f"{pl}")
+        pl = re.sub(r"\"(\d+\.\d+)\"", r"\1", f"{pl}")
 
         # convert NaN to null
-        pl = re.sub(r'\"NaN\"', "null", f"{pl}")
+        pl = re.sub(r"\"NaN\"", "null", f"{pl}")
 
         # replace "t" with time
-        pl = re.sub(r'\"t\"', r'"time"', f"{pl}")
+        pl = re.sub(r"\"t\"", r'"time"', f"{pl}")
 
         # return response as JSON obj
         return json.loads(pl)
@@ -111,10 +108,9 @@ class RRD_parser:
                 "step": "",
                 "end": "",
                 "rows": "",
-                "data_sources": []
+                "data_sources": [],
             },
             "data": [],
-
         }
 
         collector = defaultdict(dict)
@@ -123,19 +119,17 @@ class RRD_parser:
             r = self.get_rrd_json(ds=d)
             master_result["meta"]["start"] = datetime.datetime.fromtimestamp(
                 int(r["xport"]["meta"]["start"])
-                ).strftime(self.time_format)
+            ).strftime(self.time_format)
             master_result["meta"]["step"] = r["xport"]["meta"]["step"]
             master_result["meta"]["end"] = datetime.datetime.fromtimestamp(
                 int(r["xport"]["meta"]["end"])
-                ).strftime(self.time_format)
+            ).strftime(self.time_format)
             master_result["meta"]["rows"] = 0
             master_result["meta"]["data_sources"].append(
                 r["xport"]["meta"]["legend"]["entry"]
-                )
+            )
 
-            for collectible in chain(
-                master_result["data"], r["xport"]["data"]["row"]
-                                    ):
+            for collectible in chain(master_result["data"], r["xport"]["data"]["row"]):
                 collector[collectible["t"]].update(collectible.items())
 
         # combine objs, add row_count
