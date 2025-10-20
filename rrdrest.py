@@ -71,5 +71,5 @@ async def get_rrd_multiple(
         result = _parse_rrd_file(rrd_path, epoch_start_time, epoch_end_time)
         results.append(result)
     if not results:
-        raise HTTPException(status_code=404, detail=f"No RRD Data Found")
+        raise HTTPException(status_code=404, detail=f"No RRD Data Found")  # noqa: E501
     return results
