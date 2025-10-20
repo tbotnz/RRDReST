@@ -66,10 +66,10 @@ async def get_rrd_multiple(
     epoch_start_time: Optional[int] = None,
     epoch_end_time: Optional[int] = None,
 ):
-    results = []
+    results = {}
     for rrd_path in rrd_paths:
         result = _parse_rrd_file(rrd_path, epoch_start_time, epoch_end_time)
-        results.append({rrd_path: result})
+        results[rrd_path] = result
     if not results:
         raise HTTPException(status_code=404, detail="No RRD Data Found")
     return results
